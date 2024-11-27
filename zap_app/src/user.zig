@@ -1,7 +1,13 @@
 const std = @import("std");
+const zap = @import("zap");
 
 pub const NameType = [64:0]u8;
 const Self = @This();
+
+const Printable = struct {
+    id: u64,
+    name: []const u8,
+};
 
 // fields
 id: u64,
@@ -46,10 +52,17 @@ pub fn checkPw(self: Self, pw: []const u8) bool {
     return std.mem.eql(u8, &hash, &self.pw_hash);
 }
 
-pub fn print(self: Self, buf: []u8) []u8 {
-    return std.fmt.bufPrint(
-        buf,
-        "{c}\"name\":\"{s}\",\"\":\"\"{c}",
-        .{ '{', self.name[0..self.name_len], '}' }
-    ) catch unreachable;
+fn toPrintable(self: *Self) Printable {
+    return .{
+        .id = self.id,
+        .name = self.name[0..self.name_len],
+    };
+}
+
+pub fn print(self: *Self, buf: []u8) []const u8 {
+    if (zap.stringifyBuf(buf, self.toPrintable(), .{})) |json| {
+        return json;
+    } else {
+        return "null";
+    }
 }

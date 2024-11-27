@@ -45,7 +45,7 @@ const SessionMiddleWare = struct {
 
     // note: it MUST have all default values!!!
     const Session = struct {
-        user: *const User = undefined,
+        user: *User = undefined,
         token: []const u8 = undefined,
     };
 
@@ -75,7 +75,7 @@ const SessionMiddleWare = struct {
                     zap.debug("Auth: COOKIE IS OK!!!!\n", .{});
                     context.session = Session {
                         .token = cookie.str,
-                        .user = &user,
+                        .user = user,
                     };
                 } else {
                     zap.debug("Auth: COOKIE IS BAD!!!!: {s}\n", .{cookie.str});
@@ -110,6 +110,9 @@ fn setup_routes(a: std.mem.Allocator) !void {
         .post = create_game,
         .put = start_game,
     });
+    try routes.put("/game/join", .{
+        .post = join_game,
+    });
 }
 
 fn static_site(r: zap.Request, _: *Context) bool {
@@ -118,7 +121,7 @@ fn static_site(r: zap.Request, _: *Context) bool {
 }
 
 fn get_user(r: zap.Request, c: *Context) bool {
-    if (c.session) |sess| {
+    if (c.session) |*sess| {
         var buf: [1024]u8 = undefined;
         const message = sess.user.print(&buf);
         r.sendJson(message) catch unreachable;
@@ -167,7 +170,7 @@ fn create_or_login_user(r: zap.Request, c: *Context) bool {
         return true;
     }
 
-    if (state.users.get(User.nameToId(name))) |user| {
+    if (state.users.getPtr(User.nameToId(name))) |user| {
         // log them in
         if (user.checkPw(&pw)) {
             const token = state.createSession(user.name) catch {
@@ -195,7 +198,7 @@ fn create_or_login_user(r: zap.Request, c: *Context) bool {
         }
     } else {
         // create the user
-        const user = User.init(&name, &pw);
+        var user = User.init(&name, &pw);
         state.addUser(user) catch |e| {
             zap.debug("could not add user: {any}", .{e});
             r.sendJson("{\"error\":\"could not add user?\"}") catch return false;
@@ -248,14 +251,13 @@ fn get_game(r: zap.Request, c: *Context) bool {
     } else {
         if (r.getParamSlice("id")) |str_id| {
             const id = std.fmt.parseInt(u64, str_id, 10) catch 0;
-            if (state.games.get(id)) |game| {
+            if (state.games.getPtr(id)) |game| {
                 var json_to_send: []const u8 = undefined;
-                if (zap.stringifyBuf(&buf, game, .{})) |json| {
+                if (zap.stringifyBuf(&buf, game.toPrintable(), .{})) |json| {
                     json_to_send = json;
                 } else {
                     json_to_send = "null";
                 }
-                std.debug.print("<< json: {s}\n", .{json_to_send});
                 r.sendBody(json_to_send) catch return false;
                 return true;
             } else {
@@ -326,8 +328,45 @@ fn start_game(r: zap.Request, c: *Context) bool {
                 r.sendJson("{\"error\":\"You must be the creator to start the game\"}") catch return false;
                 return true;
             }
-            game.status = .playing;
+            game.start();
             r.sendBody("{\"result\":\"started\"}") catch return false;
+            return true;
+        } else {
+            r.sendJson("{\"error\":\"game not found\"}") catch return false;
+            return true;
+        }
+    } else {
+        r.sendJson("{\"error\":\"id param missing\"}") catch return false;
+        return true;
+    }
+}
+
+fn join_game(r: zap.Request, c: *Context) bool {
+    r.setContentType(.JSON) catch return false;
+    if (c.session == null) {
+        r.sendJson("{\"error\":\"You must be logged in\"}") catch return false;
+        return true;
+    }
+    r.parseBody() catch |err| {
+        std.log.err("Parse Body error: {any}. Expected if body is empty", .{err});
+    };
+    r.parseQuery();
+
+    if (r.getParamSlice("id")) |str_id| {
+        const id = std.fmt.parseInt(u64, str_id, 10) catch 0;
+        if (state.games.getPtr(id)) |game| {
+            game.addPlayer(c.session.?.user.id) catch {
+                r.sendJson("{\"error\":\"You could not join the game\"}") catch return false;
+                return true;
+            };
+            var buf: [1024*4]u8 = undefined;
+            var json_to_send: []const u8 = undefined;
+            if (zap.stringifyBuf(&buf, game.toPrintable(), .{})) |json| {
+                json_to_send = json;
+            } else {
+                json_to_send = "null";
+            }
+            r.sendBody(json_to_send) catch return false;
             return true;
         } else {
             r.sendJson("{\"error\":\"game not found\"}") catch return false;

@@ -50,14 +50,14 @@ pub fn addUser(self: *Self, user: User) !void {
     }
 }
 
-pub fn userFromToken(self: *Self, token: []const u8) ?User {
+pub fn userFromToken(self: *Self, token: []const u8) ?*User {
     // locked or unlocked token lookup
     self.session_lock.lock();
     defer self.session_lock.unlock();
     if (self.sessions.get(token)) |userid| {
         std.debug.print("sessions.get(token): {d}\n", .{userid});
         // cookie is a valid session!
-        if (self.users.get(userid)) |user| {
+        if (self.users.getPtr(userid)) |user| {
             return user;
         }
         // the `else` case here actually shouldn't happen,
