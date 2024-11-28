@@ -42,6 +42,7 @@ players: [MAX_PLAYERS]u64,
 status: Status = .waiting,
 mode: Mode = .single_free_for_all,
 units: [1024]?Unit = [_]?Unit { null } ** 1024,
+seed: u64,
 
 // fns
 pub fn init(n: []const u8, username: User.NameType) Self {
@@ -55,6 +56,7 @@ pub fn init(n: []const u8, username: User.NameType) Self {
         .name_len = @intCast(n.len),
         .creator = username,
         .players = players,
+        .seed = @intCast(std.time.timestamp()),
     };
 }
 
@@ -78,7 +80,7 @@ pub fn toPrintable(self: *Self) Printable {
         if (uid == null) break;
         u += 1;
     }
-    const sector = genSector();
+    const sector = self.genSector();
     return .{
         .id = self.id,
         .name = self.name[0..self.name_len],
@@ -144,10 +146,16 @@ const Sector = struct {
     planets: [MAX_PLANETS]?Planet,
 };
 
-fn genSector() Sector {
+fn genSector(self: Self) Sector {
+    var prng = std.rand.DefaultPrng.init(self.seed);
+    const random = prng.random();
+
     var planets = [_]?Planet { null } ** MAX_PLANETS;
-    planets[0] = Planet.init(.earth, 200.2);
-    planets[1] = Planet.init(.gas, 101.101);
+    const num_planets: usize = @intFromFloat(@mod(random.float(f64) * 1000.0, MAX_PLANETS - 2) + 2.0);
+    for (0..num_planets) |i| {
+        const seed = random.float(f64) * 1000.0;
+        planets[i] = Planet.init(seed);
+    }
     return .{
         .star = Star.init(.g, 1000.1),
         .planets = planets,
