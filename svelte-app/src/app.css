@@ -1,0 +1,15 @@
+@import 'tailwindcss';
+
+.blink-cursor::after {
+  content: "";
+  position: absolute;
+  width: 2px;
+  height: 100%;
+  background-color: white;
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  from, to { background-color: transparent; }
+  50% { background-color: white; }
+}
