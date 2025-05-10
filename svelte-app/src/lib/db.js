@@ -1,7 +1,11 @@
+import { building } from '$app/environment';
 import Database from 'better-sqlite3';
 export const db = new Database('game.db');
 db.pragma('journal_mode = WAL');
-prepare();
+
+if (!building) {
+  prepare();
+}
 
 function prepare() {
 	db.exec(`
@@ -20,7 +24,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS sessions (
   id TEXT NOT NULL PRIMARY KEY,
-  user TEXT NOT NULL REFERENCES user(email),
+  user TEXT NOT NULL REFERENCES users(email),
   expires_at INTEGER NOT NULL
 );
 	`);

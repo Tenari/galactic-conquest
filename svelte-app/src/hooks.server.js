@@ -5,6 +5,7 @@ export async function handle({ event, resolve }) {
   if (token !== null) {
     const { session, user } = validateSessionToken(token);
     event.locals.user = user;
+    console.log("logged in user", user);
   }
 
 	return await resolve(event);

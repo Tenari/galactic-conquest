@@ -56,7 +56,7 @@ export function createSession(token, userEmail) {
 		userEmail,
 		Math.floor(expiresAt.getTime() / 1000)
 	);
-	return session;
+  return id;
 }
 
 export function validateSessionToken(token) {
