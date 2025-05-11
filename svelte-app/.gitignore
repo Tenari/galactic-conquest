@@ -25,3 +25,6 @@ vite.config.ts.timestamp-*
 game.db
 game.db-shm
 game.db-wal
+
+deploy-if-changed.sh
+deploy.sh
