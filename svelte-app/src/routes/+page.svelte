@@ -24,7 +24,7 @@
 {#if !!data.user}
   <a href="/games">My games</a>
 {:else}
-  <p>
+  <p class="mt-3">
     Captain, please 
     <a href="/login">Login</a>
     to submit your orders.
